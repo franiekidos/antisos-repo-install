@@ -11,6 +11,7 @@ REPO_URL="https://raw.githubusercontent.com/franiekidos/antisos-repo/main"
 # =============================
 # 1️⃣ Download, import, and locally sign the GPG key
 # =============================
+sudo pacman-key --init
 echo "==> Downloading and importing Antisos GPG key..."
 curl -sL "$KEY_URL" | sudo pacman-key --add -
 KEY_ID=$(curl -sL "$KEY_URL" | gpg --with-colons --import-options show-only --import 2>/dev/null | awk -F: '/^pub/ {print $5}')
