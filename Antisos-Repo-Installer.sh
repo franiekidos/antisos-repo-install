@@ -20,7 +20,7 @@ sudo pacman-key --lsign-key "$KEY_ID"
 # 2️⃣ Install the keyring package
 # =============================
 echo "==> Installing antisos-keyring..."
-sudo pacman -U "$REPO_URL/$ARCH/antisos-keyring-1-1-any.pkg.tar.zst"
+sudo pacman -U "$REPO_URL/$ARCH/antisos-keyring-1-1-any.pkg.tar.zst" --noconfirm --needed
 
 # =============================
 # 3️⃣ Enable the repo in pacman.conf
