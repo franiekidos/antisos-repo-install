@@ -22,6 +22,7 @@ sudo pacman-key --lsign-key "$KEY_ID"
 # =============================
 echo "==> Installing antisos-keyring..."
 sudo pacman -Sy
+sudo rm /var/lib/pacman/db.lck
 sudo pacman -U "$REPO_URL/$ARCH/antisos-keyring-1-1-any.pkg.tar.zst" --noconfirm --needed
 
 # =============================
