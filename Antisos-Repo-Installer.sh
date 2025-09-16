@@ -7,62 +7,57 @@ set -euo pipefail
 KEY_URL="https://raw.githubusercontent.com/franiekidos/antisos-repo-install/main/key/antisos.gpg"
 ARCH=$(uname -m)
 REPO_URL="https://raw.githubusercontent.com/franiekidos/antisos-repo/main"
-PACMAN_CONF="/etc/pacman.conf"
+MAX_WAIT=30  # Max wait time for pacman lock in seconds
 
-log() {
-    echo -e "[INFO] $*"
-}
-
-error_exit() {
-    echo -e "[ERROR] $*" >&2
-    exit 1
+# =============================
+# Functions
+# =============================
+wait_for_pacman_lock() {
+    local wait_time=0
+    while sudo fuser /var/lib/pacman/db.lck >/dev/null 2>&1; do
+        echo "Pacman database is locked. Waiting..."
+        sleep 1
+        ((wait_time++))
+        if [ "$wait_time" -ge "$MAX_WAIT" ]; then
+            echo "Pacman database is still locked after $MAX_WAIT seconds. Exiting."
+            exit 1
+        fi
+    done
 }
 
 # =============================
-# 1️⃣ Initialize and import GPG key
+# 1️⃣ Download, import, and locally sign the GPG key
 # =============================
-log "Initializing pacman keyring..."
+echo "==> Initializing pacman keyring..."
 sudo pacman-key --init
 
-log "Downloading AntisOS GPG key..."
-KEY_TMP=$(mktemp)
-curl -fsSL "$KEY_URL" -o "$KEY_TMP" || error_exit "Failed to download GPG key."
+echo "==> Downloading and importing AntisOS GPG key..."
+curl -sL "$KEY_URL" | sudo pacman-key --add -
 
-log "Adding and locally signing the GPG key..."
-sudo pacman-key --add "$KEY_TMP" || error_exit "Failed to add GPG key."
-KEY_ID=$(gpg --with-colons --import-options show-only --import "$KEY_TMP" 2>/dev/null | awk -F: '/^pub/ {print $5}')
-rm -f "$KEY_TMP"
-
-if [[ -z "$KEY_ID" ]]; then
-    error_exit "Failed to extract key ID from GPG key."
-fi
-
-sudo pacman-key --lsign-key "$KEY_ID" || error_exit "Failed to locally sign the key."
+KEY_ID=$(curl -sL "$KEY_URL" | gpg --with-colons --import-options show-only --import 2>/dev/null | awk -F: '/^pub/ {print $5}')
+sudo pacman-key --lsign-key "$KEY_ID"
 
 # =============================
-# 2️⃣ Install antisos-keyring package
+# 2️⃣ Wait for pacman, then install keyring package
 # =============================
-log "Updating pacman database..."
+wait_for_pacman_lock
+echo "==> Installing antisos-keyring..."
 sudo pacman -Sy --noconfirm
-
-KEYRING_PKG="$REPO_URL/$ARCH/antisos-keyring-1-1-any.pkg.tar.zst"
-log "Installing antisos-keyring from $KEYRING_PKG..."
-sudo pacman -U "$KEYRING_PKG" --noconfirm --needed || error_exit "Failed to install antisos-keyring."
+sudo pacman -U "$REPO_URL/$ARCH/antisos-keyring-1-1-any.pkg.tar.zst" --noconfirm --needed
 
 # =============================
-# 3️⃣ Enable AntisOS repo
+# 3️⃣ Enable the repo in pacman.conf if not present
 # =============================
-if ! grep -q "^\[antisos\]" "$PACMAN_CONF"; then
-    log "Adding AntisOS repo to $PACMAN_CONF..."
-    echo -e "\n[antisos]\nSigLevel = Required DatabaseOptional\nServer = $REPO_URL/\$arch" | sudo tee -a "$PACMAN_CONF" >/dev/null
-else
-    log "AntisOS repo already enabled in $PACMAN_CONF."
+if ! grep -q "\[antisos\]" /etc/pacman.conf; then
+    echo "==> Adding AntisOS repo to /etc/pacman.conf..."
+    echo -e "\n[antisos]\nSigLevel = Required DatabaseOptional\nServer = $REPO_URL/\$arch" | sudo tee -a /etc/pacman.conf
 fi
 
 # =============================
 # 4️⃣ Update pacman database
 # =============================
-log "Synchronizing pacman package database..."
+wait_for_pacman_lock
+echo "==> Syncing package database..."
 sudo pacman -Sy --noconfirm
 
-log "AntisOS repository setup complete."
+echo "✅ AntisOS repo setup completed!"
