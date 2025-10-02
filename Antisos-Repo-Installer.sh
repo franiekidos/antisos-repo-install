@@ -16,7 +16,7 @@ wait_for_pacman_lock() {
     local wait_time=0
     while sudo fuser /var/lib/pacman/db.lck >/dev/null 2>&1; do
         echo "Pacman database is locked. Waiting..."
-        sleep 1
+        sleep 5
         ((wait_time++))
         if [ "$wait_time" -ge "$MAX_WAIT" ]; then
             echo "Pacman database is still locked after $MAX_WAIT seconds. Exiting."
