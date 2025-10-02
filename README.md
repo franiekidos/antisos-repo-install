@@ -2,7 +2,7 @@
 AntisOS Repo Installer
 ## How to install
 ```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/franiekidos/antisos-repo-install/refs/heads/main/Antisos-Repo-Installer.sh)"
+bash -c "$(curl -fsSL "https://raw.githubusercontent.com/franiekidos/antisos-repo-install/refs/heads/main/Antisos-Repo-Installer.sh")"
 ```
 It's all in *one file*
 
