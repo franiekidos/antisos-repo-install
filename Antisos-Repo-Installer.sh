@@ -26,10 +26,18 @@ fi
 
 echo "==> Fetching AntisOS GPG key..."
 curl -fsSL "$KEY_URL" -o /tmp/antisos.gpg
+
+echo "==> Importing key into pacman..."
 sudo pacman-key --add /tmp/antisos.gpg
 
+# Extract key ID
 KEY_ID=$(gpg --with-colons --import-options show-only --import /tmp/antisos.gpg 2>/dev/null | awk -F: '/^pub/ {print $5}')
-sudo pacman-key --lsign-key "$KEY_ID"
+if [ -n "$KEY_ID" ]; then
+    sudo pacman-key --lsign-key "$KEY_ID"
+else
+    echo "❌ Failed to detect key ID from GPG key."
+    exit 1
+fi
 
 echo "==> Refreshing pacman databases..."
 wait_for_pacman_lock
@@ -41,12 +49,13 @@ sudo pacman -U "$REPO_URL/$ARCH/antisos-keyring-1-1-any.pkg.tar.zst" --noconfirm
     exit 1
 }
 
+# Add repo to pacman.conf if missing
 if ! grep -q "^\[antisos\]" /etc/pacman.conf; then
     echo "==> Adding AntisOS repo to pacman.conf..."
     cat <<EOF | sudo tee -a /etc/pacman.conf
 
 [antisos]
-SigLevel = Required DatabaseOptional
+SigLevel = Optional TrustAll
 Server = $REPO_URL/\$arch
 EOF
 fi
